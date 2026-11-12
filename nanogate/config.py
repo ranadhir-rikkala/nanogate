@@ -36,7 +36,7 @@ class Settings:
     remote_mode: str = "disabled"
     receipt_key: str = ""
     key_pepper: str = ""
-    cache_similarity: float = 0.82
+    cache_similarity: float = 0.70
     cache_ttl_s: int = 86400
     max_prompt_chars: int = 32000
 
