@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NanoGate</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1b1d1f; --muted: #6a6f76; --line: #e2dfd6;
+    --accent: #0b6e4f; --warn: #a15c00; --bad: #a3271f; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121416; --panel: #1a1d20; --ink: #e8e6e1; --muted: #9aa0a8; --line: #2b3035; --accent: #4cc79c; --warn: #e0a34a; --bad: #ef7d73; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, sans-serif; }
+  header { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 16px; margin: 0; letter-spacing: .02em; }
+  header .meta { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  header .spacer { flex: 1; }
+  main { max-width: 1180px; margin: 0 auto; padding: 20px; display: grid; gap: 16px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
+  .tile .value { font-size: 24px; font-variant-numeric: tabular-nums; }
+  .tile .label { color: var(--muted); font-size: 12px; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .bar { display: grid; grid-template-columns: 150px 1fr 40px; gap: 8px; align-items: center; font-size: 12px; margin: 4px 0; }
+  .bar .track { background: var(--line); border-radius: 3px; height: 8px; overflow: hidden; }
+  .bar .fill { background: var(--accent); height: 100%; }
+  .bar .n { text-align: right; font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .scroll { overflow-x: auto; }
+  .tag { font-family: var(--mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); }
+  .tag.blocked, .tag.abstain { color: var(--bad); border-color: var(--bad); }
+  .tag.remote { color: var(--warn); border-color: var(--warn); }
+  .tag.cache, .tag.local_small, .tag.local_large { color: var(--accent); border-color: var(--accent); }
+  pre { font: 12px/1.45 var(--mono); margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; }
+  input, select, textarea, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  textarea { width: 100%; min-height: 64px; }
+  button { cursor: pointer; background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.quiet { background: transparent; color: var(--ink); border-color: var(--line); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  .status.ok { color: var(--accent); } .status.bad { color: var(--bad); }
+  .stages { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .stage { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 11px; font-family: var(--mono); }
+  .stage b { font-weight: 600; } .stage span { color: var(--muted); }
+  #login { max-width: 420px; margin: 12vh auto; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<section id="login" class="panel">
+  <h2>NanoGate</h2>
+  <p>Paste an admin or auditor API key. It is kept in this tab's session storage only.</p>
+  <div class="row"><input id="key" type="password" placeholder="ng_..." style="flex:1" autocomplete="off"><button id="enter">Open</button></div>
+  <div id="login-error" class="status bad"></div>
+</section>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>NanoGate</h1>
+    <span class="meta" id="meta"></span>
+    <span class="spacer"></span>
+    <span id="chain" class="status"></span>
+    <button id="verify" class="quiet">Verify chain</button>
+    <button id="logout" class="quiet">Sign out</button>
+  </header>
+  <main>
+    <section class="tiles" id="tiles"></section>
+    <section class="cols">
+      <div class="panel"><h2>Routes</h2><div id="routes"></div></div>
+      <div class="panel"><h2>Reasons</h2><div id="reasons"></div></div>
+      <div class="panel"><h2>Budget today</h2><div id="budget"></div></div>
+    </section>
+    <section class="panel">
+      <h2>Policy dry run</h2>
+      <div class="row">
+        <input id="dry-dept" placeholder="department" value="it" size="10">
+        <select id="dry-model"><option>nanogate-auto</option><option>nanogate-local</option><option>nanogate-local-large</option><option>nanogate-remote</option></select>
+        <button id="dry-run">Evaluate</button>
+      </div>
+      <textarea id="dry-text" placeholder="Text to classify. Nothing is sent to a model and nothing is stored."></textarea>
+      <pre id="dry-out"></pre>
+    </section>
+    <section class="cols">
+      <div class="panel scroll">
+        <h2>Recent receipts</h2>
+        <table>
+          <thead><tr><th>#</th><th>time</th><th>dept</th><th>class</th><th>route</th><th>reason</th><th>ms</th><th>usd</th></tr></thead>
+          <tbody id="receipts"></tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h2>Receipt</h2>
+        <div class="stages" id="stages"></div>
+        <pre id="detail">Select a receipt.</pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const node = document.createElement(tag); if (cls) node.className = cls; if (text !== undefined) node.textContent = text; return node; };
+let key = sessionStorage.getItem("nanogate_key") || "";
+let timer = null;
+
+async function api(path, options = {}) {
+  const response = await fetch(path, { ...options, headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json", ...(options.headers || {}) } });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error ? `${body.error.code}: ${body.error.message}` : response.statusText);
+  return body;
+}
+
+function bars(target, counts) {
+  target.replaceChildren();
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(1, ...entries.map((entry) => entry[1]));
+  if (!entries.length) target.append(el("div", "label", "No requests yet."));
+  for (const [name, count] of entries) {
+    const row = el("div", "bar");
+    const track = el("div", "track"); const fill = el("div", "fill"); fill.style.width = `${(count / max) * 100}%`; track.append(fill);
+    row.append(el("div", "", name), track, el("div", "n", String(count)));
+    target.append(row);
+  }
+}
+
+function tile(label, value) {
+  const node = el("div", "panel tile");
+  node.append(el("div", "value", value), el("div", "label", label));
+  return node;
+}
+
+async function showReceipt(id) {
+  const receipt = await api(`/api/receipts/${id}`);
+  $("stages").replaceChildren(...(receipt.stages || []).map((stage) => {
+    const node = el("div", "stage");
+    node.append(el("b", "", stage.name), el("span", "", ` ${stage.ms} ms${stage.detail ? " · " + stage.detail : ""}`));
+    return node;
+  }));
+  $("detail").textContent = JSON.stringify(receipt, null, 2);
+}
+
+async function refresh() {
+  const [overview, list] = await Promise.all([api("/api/overview"), api("/api/receipts?limit=40")]);
+  $("meta").textContent = `${overview.tenant} · policy ${overview.policy_version} · remote ${overview.remote_mode} · router ${overview.router.trained ? "trained" : "untrained"}`;
+  const answered = (overview.by_route.cache || 0) + (overview.by_route.local_small || 0) + (overview.by_route.local_large || 0);
+  $("tiles").replaceChildren(
+    tile("requests", String(overview.requests)),
+    tile("kept on device", overview.requests ? `${Math.round((answered / overview.requests) * 100)}%` : "–"),
+    tile("cache hits", String(overview.by_route.cache || 0)),
+    tile("blocked", String(overview.by_route.blocked || 0)),
+    tile("avg latency (ms)", overview.avg_latency_ms.toFixed(1)),
+    tile("billed (usd)", overview.cost_usd.toFixed(4)),
+  );
+  bars($("routes"), overview.by_route);
+  bars($("reasons"), overview.by_reason);
+  $("budget").replaceChildren(...(overview.budget_today.length ? overview.budget_today.map((entry) => {
+    const node = el("div", "bar");
+    node.append(el("div", "", entry.department), el("div", "", `$${entry.spent_usd.toFixed(4)} spent`), el("div", "n", String(entry.requests)));
+    return node;
+  }) : [el("div", "label", "No spend recorded today.")]));
+  $("receipts").replaceChildren(...list.receipts.map((receipt) => {
+    const row = el("tr");
+    const route = el("td"); route.append(el("span", `tag ${receipt.route}`, receipt.route));
+    row.append(
+      el("td", "", String(receipt.seq)), el("td", "", new Date(receipt.created_at * 1000).toLocaleTimeString()),
+      el("td", "", receipt.department), el("td", "", receipt.data_class), route,
+      el("td", "", receipt.reason), el("td", "", receipt.latency_ms.toFixed(1)), el("td", "", receipt.cost_usd.toFixed(4)),
+    );
+    row.addEventListener("click", () => showReceipt(receipt.receipt_id));
+    return row;
+  }));
+}
+
+async function start() {
+  try {
+    await refresh();
+    sessionStorage.setItem("nanogate_key", key);
+    $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+    clearInterval(timer); timer = setInterval(() => refresh().catch(() => {}), 4000);
+  } catch (error) {
+    $("login-error").textContent = error.message;
+    $("login").classList.remove("hidden"); $("app").classList.add("hidden");
+  }
+}
+
+$("enter").addEventListener("click", () => { key = $("key").value.trim(); start(); });
+$("key").addEventListener("keydown", (event) => { if (event.key === "Enter") $("enter").click(); });
+$("logout").addEventListener("click", () => { sessionStorage.removeItem("nanogate_key"); key = ""; clearInterval(timer); $("app").classList.add("hidden"); $("login").classList.remove("hidden"); });
+$("verify").addEventListener("click", async () => {
+  const result = await api("/api/chain/verify");
+  const ok = result.status === "SEALED";
+  $("chain").className = `status ${ok ? "ok" : "bad"}`;
+  $("chain").textContent = ok ? `Chain sealed · ${result.checked} receipts` : `Integrity failed at #${result.broken_seq}: ${result.detail}`;
+});
+$("dry-run").addEventListener("click", async () => {
+  try {
+    const result = await api("/api/policy/test", { method: "POST", body: JSON.stringify({ department: $("dry-dept").value, model: $("dry-model").value, text: $("dry-text").value }) });
+    $("dry-out").textContent = JSON.stringify(result, null, 2);
+  } catch (error) { $("dry-out").textContent = error.message; }
+});
+if (key) start();
+</script>
+</body>
+</html>
