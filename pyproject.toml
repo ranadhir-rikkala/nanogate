@@ -3,6 +3,7 @@ name = "nanogate"
 version = "0.1.0"
 description = "Local-first AI gateway: every request takes the cheapest safe route, with a verifiable receipt."
 readme = "README.md"
+license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 authors = [{ name = "Ranadhir Rikkala" }]
 dependencies = [
