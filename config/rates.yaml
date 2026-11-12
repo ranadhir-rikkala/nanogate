@@ -1,0 +1,23 @@
+version: "2026.11.1"
+
+routes:
+  cache:
+    basis: none
+    note: Reused answer. No inference is run.
+    usd_per_1k_prompt_tokens: 0.0
+    usd_per_1k_completion_tokens: 0.0
+  local_small:
+    basis: none
+    note: On-device inference has no per-token bill. Energy is not priced here.
+    usd_per_1k_prompt_tokens: 0.0
+    usd_per_1k_completion_tokens: 0.0
+  local_large:
+    basis: none
+    note: On-device inference has no per-token bill. Energy is not priced here.
+    usd_per_1k_prompt_tokens: 0.0
+    usd_per_1k_completion_tokens: 0.0
+  remote:
+    basis: assumed
+    note: Placeholder list price for a hosted frontier tier. Replace with your provider's published rate.
+    usd_per_1k_prompt_tokens: 0.0030
+    usd_per_1k_completion_tokens: 0.0150
