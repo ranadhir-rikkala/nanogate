@@ -1,0 +1,47 @@
+version: "2026.11.1"
+
+defaults:
+  routes: [cache, local_small, local_large]
+  remote_max_class: internal
+  cache_max_class: internal
+  pii_action: local_only
+  low_confidence: flag
+  max_p_error: 0.25
+  requests_per_minute: 120
+  max_output_tokens: 1024
+  budget:
+    daily_usd: 5.00
+    per_request_usd: 0.05
+
+classification:
+  IP_ADDRESS: internal
+  EMAIL: confidential
+  PHONE: confidential
+  EMPLOYEE_ID: confidential
+  SSN: restricted
+  CREDIT_CARD: restricted
+
+tenants:
+  acme:
+    departments:
+      it:
+        routes: [cache, local_small, local_large, remote]
+        budget: { daily_usd: 2.50, per_request_usd: 0.05 }
+      hr:
+        routes: [cache, local_small, local_large]
+        remote_max_class: public
+        max_p_error: 0.15
+        low_confidence: abstain
+        budget: { daily_usd: 1.50, per_request_usd: 0.05 }
+      sales:
+        routes: [cache, local_small, local_large, remote]
+        pii_action: redact
+        max_p_error: 0.20
+        budget: { daily_usd: 1.00, per_request_usd: 0.05 }
+      legal:
+        routes: [local_small, local_large]
+        pii_action: block
+        requests_per_minute: 30
+  globex:
+    departments:
+      it: {}
